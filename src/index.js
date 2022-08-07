@@ -5,6 +5,7 @@ const { default: mongoose } = require("mongoose");
 const {playerSchema, PlayerModel} = require("./model/playerDB");
 const Room = require("./model/room");
 const Player = require("./model/player");
+const {findPlayer, findRoom} = require("./functions");
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -33,6 +34,7 @@ io.on("connection", (socket) => {
                 onlinePlayers.push(joinedPlayer);
                 console.log(onlinePlayers);
                 socket.emit("loginSuccess", {
+                    username: joinedPlayer.username, 
                     lobbyInfo: rooms, 
                 });
                 io.emit("refreshLobby", {
@@ -50,9 +52,7 @@ io.on("connection", (socket) => {
     socket.on("createRoom", async () => {
         try {
             console.log("creating room ...");
-            const p = onlinePlayers.find((player) => {
-                return player.socketID == socket.id;
-            });
+            const p = findPlayer(onlinePlayers, socket);
             console.log(p);
             if (p == null) {
                 console.log("create room failed");
@@ -81,12 +81,8 @@ io.on("connection", (socket) => {
 
     socket.on("joinRoom", async (roomID) => {
         try {
-            const p = onlinePlayers.find((player) => {
-                return player.socketID == socket.id;
-            });
-            const joinRoom = rooms.find((room) => {
-                return room.roomID == roomID;
-            })
+            const p = findPlayer(onlinePlayers, socket);
+            const joinRoom = findRoom(rooms, roomID);
             if (joinRoom == null || p == null) {
                 socket.emit("error");
             } else {
@@ -106,6 +102,35 @@ io.on("connection", (socket) => {
         }
     });
 
+    socket.on("ready", async (roomID) => {
+        try {
+            const room = findRoom(rooms, roomID);
+            if (room == null) {
+                socket.emit("error");
+            } else {
+                const room = findRoom(rooms, roomID);
+                const isRed = room.isRedTeam(socket);
+                
+                room.isReady(isRed);
+
+                if (room.allowEnterGame()) {
+                    const redPlayer = room.redPlayer();
+                    const blackPlayer = room.blackPlayer();
+
+                    console.log(redPlayer["username"]);
+
+                    io.to(roomID).emit("enterGame", {
+                        "redTeam": redPlayer.username, 
+                        "blackTeam": blackPlayer.username, 
+                    })
+                }
+           
+            }
+        } catch(e) {
+            console.log(e);
+            socket.emit("error");
+        }
+    })
 })
 
 const mongoLink = "mongodb://localhost:27017/Mobile_Chinese_Chess";

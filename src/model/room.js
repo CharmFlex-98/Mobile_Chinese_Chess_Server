@@ -1,15 +1,37 @@
 const { playerSchema } = require("./playerDB");
 
+const RoomStatus = {
+    "allNotReady": 0, 
+    "redReady": 1, 
+    "blackReady": 2,
+    "allReady": 3 
+}
+
 class Room {
     static index = 0;
     roomID;
     redPlayers = [];
     blackPlayers = [];
+    roomStatus = RoomStatus.allNotReady;
 
     constructor() {
         this.roomID = Room.index;
         Room.index++;
     }
+
+    redPlayer() {
+        return this.redPlayers[0];
+    }
+
+    blackPlayer() {
+        return this.blackPlayers[0];
+    }
+
+    // check if a player is in red team or not, else the player in black team.
+    isRedTeam(socket) {
+        return this.redPlayer()["socketID"] == socket.id;
+    }
+    
 
     joinable() {
         return (this.redPlayers.length + this.blackPlayers.length) < 2;
@@ -34,6 +56,22 @@ class Room {
             });
         }
     }
+
+    isReady(isRed) {
+        if ((isRed && this.roomStatus == RoomStatus.blackReady) || (!isRed && this.roomStatus == RoomStatus.redReady)) {
+            console.log("what");
+            this.roomStatus = RoomStatus.allReady;
+        } else {
+            this.roomStatus = isRed ? RoomStatus.redReady : RoomStatus.blackReady;
+        }
+        console.log(this.roomStatus);
+    }
+
+    allowEnterGame() {
+        return this.roomStatus == RoomStatus.allReady;
+    }
+
+
 }
 
 module.exports = Room;
