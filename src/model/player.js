@@ -1,23 +1,11 @@
-const mongoose = require("mongoose");
+class Player {
+    username;
+    socketID;
 
-const playerSchema = new mongoose.Schema({
-    username: {
-        type: String, 
-        trim: true, 
-    }, 
-    email: {
-        type: String, 
-        trim: true, 
-    }, 
-    password: {
-        type: String, 
-        trim:true, 
-    }, 
-    socketID: {
-        type: String, 
+    constructor(username, socketID) {
+        this.username = username;
+        this.socketID = socketID; 
     }
-}) 
+}
 
-const Player = mongoose.model("Player", playerSchema);
-
-module.exports = {playerSchema, Player};
+module.exports = Player;
