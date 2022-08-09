@@ -13,6 +13,7 @@ class Room {
     redPlayers = [];
     blackPlayers = [];
     roomStatus = RoomStatus.allNotReady;
+    isRedTurn = true;
 
     constructor() {
         this.roomID = Room.index;
@@ -69,6 +70,10 @@ class Room {
 
     allowEnterGame() {
         return this.roomStatus == RoomStatus.allReady;
+    }
+
+    changeTurn() {
+        this.isRedTurn = !this.isRedTurn;
     }
 
 

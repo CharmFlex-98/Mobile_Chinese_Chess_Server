@@ -91,7 +91,10 @@ io.on("connection", (socket) => {
                     joinRoom.joinRoom(p);
                     console.log(joinRoom);
                     socket.join(roomID);
-                    io.to(roomID).emit("joinRoomSuccessed", {
+                    await socket.emit("joinRoomSuccessed", {
+                        roomInfo: joinRoom, 
+                    })
+                    socket.to(roomID).emit("opponentJoined", {
                         roomInfo: joinRoom, 
                     })
                 }
@@ -129,6 +132,29 @@ io.on("connection", (socket) => {
         } catch(e) {
             console.log(e);
             socket.emit("error");
+        }
+    })
+
+    socket.on("move", async (data) => {
+        try {
+            const roomID = data["roomID"];
+            const room = findRoom(rooms, roomID); 
+            const moveData = data["moveData"]
+
+            if (room != null) {
+                room.changeTurn();
+                console.log("get move");
+                socket.to(roomID).emit("playerMove", {
+                    "prevX": moveData["prevX"],
+                    "currX": moveData["currX"],
+                    "prevY": moveData["prevY"], 
+                    "currY": moveData["currY"], 
+                })
+            }
+           
+        } catch(e) {
+            console.log(e);
+            socket.emit("moveError");
         }
     })
 })
