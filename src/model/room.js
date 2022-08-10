@@ -48,12 +48,12 @@ class Room {
 
     leaveRoom(player) {
         if (this.redPlayers.includes(player)) {
-            this.redPlayers.filter((element) => {
-                element != player;
+            this.redPlayers = this.redPlayers.filter((element) => {
+                return element != player;
             });
         } else if (this.blackPlayers.includes(player)){
-            this.blackPlayers.filter((element) => {
-                element != player;
+            this.blackPlayers = this.blackPlayers.filter((element) => {
+                return element != player;
             });
         }
     }

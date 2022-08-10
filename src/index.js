@@ -33,12 +33,13 @@ io.on("connection", (socket) => {
                 const joinedPlayer = new Player(player.username, socket.id);
                 onlinePlayers.push(joinedPlayer);
                 console.log(onlinePlayers);
+                socket.join("lobby");
                 socket.emit("loginSuccess", {
                     username: joinedPlayer.username, 
                     lobbyInfo: rooms, 
                 });
-                io.emit("refreshLobby", {
-                    roomInfo: rooms, 
+                socket.to("lobby").emit("playerJoinedLobby", {
+                    "message": joinedPlayer.username + " joined!!"
                 })
             }
     
@@ -105,6 +106,34 @@ io.on("connection", (socket) => {
         }
     });
 
+    socket.on("leaveRoom", async (roomID) => {
+        try {
+           const p = findPlayer(onlinePlayers, socket);
+           const joinedRoom = findRoom(rooms, roomID);
+           console.log("=====");
+           console.log(p);
+           console.log(joinedRoom);
+
+           if (p == null || joinedRoom == null) {
+               socket.emit("leaveRoomError");
+           } else {
+               socket.leave(roomID);
+               joinedRoom.leaveRoom(p);
+               console.log(joinedRoom);
+               socket.to(roomID).emit("opponentLeaved", {
+                   "roomInfo": joinedRoom, 
+               })
+               await socket.emit("leaveRoomSuccessed");
+           }
+           
+        } catch(e) {
+            console.log(e);
+            socket.emit("leaveRoomError");
+        }
+    });
+
+
+
     socket.on("ready", async (roomID) => {
         try {
             const room = findRoom(rooms, roomID);
@@ -126,8 +155,12 @@ io.on("connection", (socket) => {
                         "redTeam": redPlayer.username, 
                         "blackTeam": blackPlayer.username, 
                     })
+                } else {
+                    const readyPlayer = isRed ? room.redPlayer() : room.blackPlayer();
+                    io.to(roomID).emit("onePlayerReady", {
+                        "readyPlayer": readyPlayer.username,
+                    })
                 }
-           
             }
         } catch(e) {
             console.log(e);
