@@ -34,7 +34,7 @@ io.on("connection", (socket) => {
                 onlinePlayers.push(joinedPlayer);
                 console.log(onlinePlayers);
                 socket.join("lobby");
-                socket.emit("loginSuccess", {
+                socket.emit("loginSuccessed", {
                     username: joinedPlayer.username, 
                     lobbyInfo: rooms, 
                 });
@@ -95,7 +95,7 @@ io.on("connection", (socket) => {
                     await socket.emit("joinRoomSuccessed", {
                         roomInfo: joinRoom, 
                     })
-                    socket.to(roomID).emit("opponentJoined", {
+                    socket.to(roomID).emit("roomStatusChanged", {
                         roomInfo: joinRoom, 
                     })
                 }
@@ -120,10 +120,21 @@ io.on("connection", (socket) => {
                socket.leave(roomID);
                joinedRoom.leaveRoom(p);
                console.log(joinedRoom);
-               socket.to(roomID).emit("opponentLeaved", {
+               socket.to(roomID).emit("roomStatusChanged", {
                    "roomInfo": joinedRoom, 
                })
                await socket.emit("leaveRoomSuccessed");
+
+               // if there is no more people in room, destroy it
+               if (joinedRoom.playerCount() == 0) {
+                   rooms = rooms.filter((room) => {
+                       return room.roomID != joinedRoom.roomID;
+                   });
+
+                   io.emit("refreshLobby", {
+                       "lobbyInfo": rooms
+                   });
+               }
            }
            
         } catch(e) {
@@ -145,22 +156,26 @@ io.on("connection", (socket) => {
                 
                 room.isReady(isRed);
 
-                if (room.allowEnterGame()) {
-                    const redPlayer = room.redPlayer();
-                    const blackPlayer = room.blackPlayer();
+                io.to(roomID).emit("roomStatusChanged", {
+                    "roomInfo": room, 
+                })
 
-                    console.log(redPlayer["username"]);
+                // if (room.allowEnterGame()) {
+                //     const redPlayer = room.redPlayer();
+                //     const blackPlayer = room.blackPlayer();
 
-                    io.to(roomID).emit("enterGame", {
-                        "redTeam": redPlayer.username, 
-                        "blackTeam": blackPlayer.username, 
-                    })
-                } else {
-                    const readyPlayer = isRed ? room.redPlayer() : room.blackPlayer();
-                    io.to(roomID).emit("onePlayerReady", {
-                        "readyPlayer": readyPlayer.username,
-                    })
-                }
+                //     console.log(redPlayer["username"]);
+
+                //     io.to(roomID).emit("enterGame", {
+                //         "redTeam": redPlayer.username, 
+                //         "blackTeam": blackPlayer.username, 
+                //     })
+                // } else {
+                //     const readyPlayer = isRed ? room.redPlayer() : room.blackPlayer();
+                //     io.to(roomID).emit("onePlayerReady", {
+                //         "readyPlayer": readyPlayer.username,
+                //     })
+                // }
             }
         } catch(e) {
             console.log(e);
@@ -178,10 +193,12 @@ io.on("connection", (socket) => {
                 room.changeTurn();
                 console.log("get move");
                 socket.to(roomID).emit("playerMove", {
-                    "prevX": moveData["prevX"],
-                    "currX": moveData["currX"],
-                    "prevY": moveData["prevY"], 
-                    "currY": moveData["currY"], 
+                    "moveInfo": {
+                        "prevX": moveData["prevX"],
+                        "currX": moveData["currX"],
+                        "prevY": moveData["prevY"], 
+                        "currY": moveData["currY"], 
+                    }
                 })
             }
            
@@ -189,6 +206,71 @@ io.on("connection", (socket) => {
             console.log(e);
             socket.emit("moveError");
         }
+    })
+
+    socket.on("endGame", async (data) => {
+        try {
+            const isWinner = data["isWinner"];
+            roomID = data["roomID"];
+
+            if (isWinner) {
+                socket.emit("gameStatusChanged", {
+                    "isWinner": true
+                })
+                socket.to(roomID).emit("gameStatusChanged", {
+                    "isWinner": false, 
+                })
+            } else {
+                socket.emit("gameStatusChanged", {
+                    "isWinner": false
+                })
+                socket.to(roomID).emit("gameStatusChanged", {
+                    "isWinner": true, 
+                })
+            }
+
+            console.log("status changed sent")
+           
+        } catch(e) {
+            console.log(e);
+            socket.emit("endGameError");
+        }
+    })
+
+    socket.on("restartRequested", async (data) => {
+        const roomID = data["roomID"];
+        socket.to(roomID).emit("gameStatusChanged", {
+            "restartInvited": true
+        })
+    })
+
+    socket.on("requestCancelled", async (data) => {
+        const roomID = data["roomID"];
+        socket.to(roomID).emit("gameStatusChanged", {
+            "requestCancelled": true
+        })
+    })
+
+    socket.on("restartRefused", async (data) => {
+        const roomID = data["roomID"];
+        socket.to(roomID).emit("gameStatusChanged", {
+            "restartRefused": true
+        })
+    })
+
+    socket.on("restartAccepted", async (data) => {
+        const roomID = data["roomID"];
+        io.to(roomID).emit("gameStatusChanged", {
+            restartGame: true
+        });
+    })
+
+    socket.on("leaveGame", async (data) => {
+        const roomID = data["roomID"];
+        const room = findRoom(rooms, roomID);
+
+        socket.to(roomID).emit("opponentLeftGame");
+        room.resetRoomStatus();
     })
 })
 

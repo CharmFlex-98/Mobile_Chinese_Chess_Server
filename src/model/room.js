@@ -35,7 +35,11 @@ class Room {
     
 
     joinable() {
-        return (this.redPlayers.length + this.blackPlayers.length) < 2;
+        return this.playerCount() < 2;
+    }
+
+    playerCount() {
+        return this.redPlayers.length + this.blackPlayers.length;
     }
 
     joinRoom(player) {
@@ -74,6 +78,10 @@ class Room {
 
     changeTurn() {
         this.isRedTurn = !this.isRedTurn;
+    }
+
+    resetRoomStatus() {
+        this.roomStatus = RoomStatus.allNotReady;
     }
 
 
